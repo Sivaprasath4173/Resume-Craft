@@ -108,7 +108,12 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-display);
   }
 }
@@ -169,6 +174,7 @@
     opacity: 0;
     transform: translateY(24px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -176,8 +182,13 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes scaleIn {
@@ -185,6 +196,7 @@
     opacity: 0;
     transform: scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -196,6 +208,7 @@
     opacity: 0;
     transform: translateX(24px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -204,25 +217,103 @@
 
 /* Print styles for resume */
 @media print {
-  body * {
-    visibility: hidden;
-  }
-
-  #resume-preview, #resume-preview * {
-    visibility: visible;
-  }
-
-  #resume-preview {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    padding: 0;
+  @page {
     margin: 0;
+    size: A4;
   }
 
-  .no-print {
+  /* Force light mode colors for printing */
+  :root {
+    --background: 0 0% 100% !important;
+    --foreground: 222 47% 11% !important;
+    --card: 0 0% 100% !important;
+    --card-foreground: 222 47% 11% !important;
+    --border: 220 13% 91% !important;
+  }
+
+  html,
+  body {
+    background: white !important;
+    width: 210mm;
+    height: 297mm;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide everything by default */
+  body>* {
     display: none !important;
+  }
+
+  /* Show the main container and its ancestors of the preview */
+  #root,
+  #root>div,
+  #root>div>div,
+  aside,
+  main {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  /* Hide all siblings of ancestors of the preview */
+  header,
+  nav,
+  button,
+  .no-print,
+  .no-print * {
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Specifically show ONLY the resume-preview */
+  #resume-preview {
+    display: block !important;
+    visibility: visible !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 99999 !important;
+    background: white !important;
+  }
+
+  #resume-preview-content {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    transform: none !important;
+    visibility: visible !important;
+    background: white !important;
+  }
+
+  /* Ensure all content inside preview is visible */
+  #resume-preview-content * {
+    visibility: visible !important;
+  }
+
+  /* Disable animations and transitions in print */
+  * {
+    animation: none !important;
+    transition: none !important;
   }
 }
 
@@ -231,13 +322,16 @@
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: hsl(var(--muted));
 }
+
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground));
 }

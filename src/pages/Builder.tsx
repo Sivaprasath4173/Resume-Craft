@@ -99,7 +99,20 @@ export default function Builder() {
   };
 
   const handleDownload = () => {
+    // Save current title to restore it later
+    const originalTitle = document.title;
+
+    // Set title to "FullName_Resume" so the downloaded PDF has a proper filename
+    const name = resumeData.personalInfo.fullName?.replace(/\s+/g, '_') || 'My';
+    document.title = `${name}_Resume`;
+
+    // Trigger print
     window.print();
+
+    // Restore title
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 100);
   };
 
   const handleAISuggest = async (field: string) => {
@@ -356,7 +369,7 @@ export default function Builder() {
         </aside>
 
         {/* Main form area */}
-        <main className={`flex-1 overflow-y-auto ${showPreview ? 'hidden' : 'block'}`}>
+        <main className={`flex-1 overflow-y-auto no-print ${showPreview ? 'hidden' : 'block'}`}>
           <div className="max-w-2xl mx-auto p-6">
             {activeSection === 'personalInfo' && (
               <PersonalInfoForm store={store} onAISuggest={handleAISuggest} aiLoading={aiLoading} aiField={aiField} onApplySuggestion={applyAISuggestion} />
