@@ -863,7 +863,7 @@ function LanguagesForm({ store }: any) {
 }
 
 function DesignForm({ store, showPreview, setShowPreview }: any) {
-  const { design = { font: 'Inter', accentColor: '#0f172a', margins: 'standard' } } = store.resumeData;
+  const { design = { font: 'Inter', accentColor: '#0f172a', margins: 'standard' }, sectionOrder } = store.resumeData;
 
   const fonts = [
     { name: 'Inter', class: 'font-sans' },
@@ -897,70 +897,133 @@ function DesignForm({ store, showPreview, setShowPreview }: any) {
     });
   };
 
+  const handleReorder = (result: any) => {
+    if (!result.destination) return;
+    const items = Array.from(sectionOrder || sections.filter(s => s.id !== 'design').map(s => s.id));
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    store.setSectionOrder([...items, 'design']);
+  };
+
+  const activeSectionsList = (sectionOrder || sections.map(s => s.id)).filter((id: string) => id !== 'design');
+
   return (
     <div>
-      <SectionHeader title="Design & Formatting" desc="Customize the look and feel of your resume." />
+      <SectionHeader title="Design Studio" desc="Customize the look, feel and flow of your resume." />
 
-      <div className="space-y-6">
-        {/* Preview Button in Design Tab for Quick Access */}
-        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-center justify-between">
+      <div className="space-y-8">
+        {/* Full Screen Preview */}
+        <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-5 flex items-center justify-between shadow-sm">
           <div>
-            <h3 className="font-semibold text-sm text-primary mb-1">Preview Mode</h3>
-            <p className="text-xs text-muted-foreground">View your resume in full screen.</p>
+            <h3 className="font-bold text-sm text-primary mb-1">Preview Full Page</h3>
+            <p className="text-xs text-muted-foreground">See how your resume looks in print format.</p>
           </div>
-          <Button onClick={() => setShowPreview(true)} size="sm" className="gap-2">
+          <Button onClick={() => setShowPreview(true)} size="sm" className="gap-2 shadow-lg shadow-primary/20 rounded-xl">
             <Eye className="w-4 h-4" /> Open Preview
           </Button>
         </div>
 
+        {/* Section Reordering */}
         <div>
-          <Label className="text-xs mb-3 block font-semibold">Accent Color</Label>
-          <div className="flex flex-wrap gap-3">
+          <Label className="text-[11px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4 block italic">Section Sequence</Label>
+          <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+            <DragDropContext onDragEnd={handleReorder}>
+              <Droppable droppableId="design-sections-reorder">
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
+                    {activeSectionsList.map((id: string, index: number) => {
+                      const section = sections.find(s => s.id === id);
+                      if (!section) return null;
+                      const Icon = section.icon;
+                      return (
+                        <Draggable key={id} draggableId={id} index={index}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              className={`flex items-center gap-3 p-3 bg-white border rounded-xl transition-all ${snapshot.isDragging ? 'shadow-xl ring-2 ring-primary scale-[1.02] z-50' : 'hover:border-primary/30 shadow-sm border-slate-200'}`}
+                            >
+                              <div className="p-2 bg-slate-50 text-slate-400 rounded-lg group-hover:text-primary transition-colors">
+                                <GripVertical className="w-4 h-4" />
+                              </div>
+                              <div className="flex-1">
+                                <span className="text-sm font-bold text-slate-700">{section.label}</span>
+                              </div>
+                              <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center">
+                                <Icon className="w-4 h-4 text-slate-400" />
+                              </div>
+                            </div>
+                          )}
+                        </Draggable>
+                      );
+                    })}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
+            <p className="text-[10px] text-slate-400 mt-4 text-center italic font-medium">Drag items to change the display order in your resume</p>
+          </div>
+        </div>
+
+        {/* Accent Color */}
+        <div>
+          <Label className="text-[11px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4 block italic">Color Palette</Label>
+          <div className="flex flex-wrap gap-3 p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
             {colors.map(c => (
               <button
                 key={c}
                 onClick={() => update('accentColor', c)}
-                className={`w-8 h-8 rounded-full border-2 transition-transform ${design.accentColor === c ? 'border-primary scale-110' : 'border-transparent hover:scale-110'}`}
+                className={`w-10 h-10 rounded-xl border-4 transition-all duration-300 ${design.accentColor === c ? 'border-primary ring-4 ring-primary/10 scale-110 shadow-lg' : 'border-transparent hover:scale-110 opacity-80 hover:opacity-100'}`}
                 style={{ backgroundColor: c }}
               />
             ))}
-            <div className="relative">
+            <div className="relative w-10 h-10 rounded-xl overflow-hidden border-2 border-slate-100 hover:border-primary/30 transition-all shadow-sm group">
               <input
                 type="color"
                 value={design.accentColor}
                 onChange={(e) => update('accentColor', e.target.value)}
-                className="w-8 h-8 rounded-full overflow-hidden cursor-pointer border-0 p-0"
+                className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
               />
+              <div
+                className="w-full h-full flex items-center justify-center bg-slate-50 group-hover:bg-slate-100"
+                style={{ backgroundColor: design.accentColor }}
+              >
+                <Plus className="w-5 h-5 text-white mix-blend-difference" />
+              </div>
             </div>
           </div>
         </div>
 
+        {/* Typography */}
         <div>
-          <Label className="text-xs mb-3 block font-semibold">Typography</Label>
+          <Label className="text-[11px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4 block italic">Typography</Label>
           <div className="grid grid-cols-2 gap-3">
             {fonts.map((f) => (
               <div
                 key={f.name}
                 onClick={() => update('font', f.name)}
-                className={`p-3 border rounded-xl cursor-pointer transition-all ${design.font === f.name ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:border-primary/50'}`}
+                className={`p-4 border-2 rounded-2xl cursor-pointer transition-all ${design.font === f.name ? 'border-primary bg-primary/5 shadow-md shadow-primary/5' : 'hover:border-primary/20 bg-white border-slate-100'}`}
               >
-                <div className="text-sm font-medium">{f.name}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">The quick brown fox...</div>
+                <div className={`text-sm font-bold ${f.class}`}>{f.name}</div>
+                <p className={`text-[10px] text-muted-foreground mt-1 ${f.class}`}>Build your professional future</p>
               </div>
             ))}
           </div>
         </div>
 
+        {/* Margins */}
         <div>
-          <Label className="text-xs mb-3 block font-semibold">Spacing & Margins</Label>
-          <div className="grid grid-cols-3 gap-2">
+          <Label className="text-[11px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4 block italic">Layout Density</Label>
+          <div className="grid grid-cols-3 gap-3 p-2 bg-slate-100 rounded-2xl">
             {margins.map((m) => (
               <button
                 key={m.id}
                 onClick={() => update('margins', m.id)}
-                className={`p-2.5 text-xs font-medium border rounded-lg transition-all ${design.margins === m.id
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'text-slate-600 hover:border-slate-400'
+                className={`py-3 px-1 text-[11px] font-black uppercase tracking-tighter rounded-xl transition-all duration-300 ${design.margins === m.id
+                  ? 'bg-white text-primary shadow-sm scale-[1.02]'
+                  : 'text-slate-400 hover:text-slate-600'
                   }`}
               >
                 {m.label}

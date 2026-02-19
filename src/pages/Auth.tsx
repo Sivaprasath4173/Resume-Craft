@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Github, Loader2, Sparkles } from 'lucide-react';
+import { FileText, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Auth = () => {
@@ -22,6 +22,10 @@ const Auth = () => {
     const [password, setPassword] = useState('');
     const [fullName, setFullName] = useState('');
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Where should the user go after login?
+    const from = (location.state as any)?.from?.pathname || '/';
 
     const handleEmailAuth = async (type: 'login' | 'signup') => {
         setLoading(true);
@@ -34,7 +38,7 @@ const Auth = () => {
                 await signInWithEmailAndPassword(auth, email, password);
                 toast.success('Signed in successfully!');
             }
-            navigate('/');
+            navigate(from, { replace: true });
         } catch (error: any) {
             toast.error(error.message);
         } finally {
@@ -48,7 +52,7 @@ const Auth = () => {
         try {
             await signInWithPopup(auth, provider);
             toast.success('Signed in with Google!');
-            navigate('/');
+            navigate(from, { replace: true });
         } catch (error: any) {
             toast.error(error.message);
         } finally {

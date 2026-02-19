@@ -177,7 +177,7 @@ const Index = () => {
                 Sign In
               </Button>
             )}
-            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary font-medium" onClick={() => navigate('/builder')}>
+            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary font-medium" onClick={() => navigate(user ? '/builder' : '/auth', { state: { from: { pathname: '/builder' } } })}>
               {user ? 'Go to Builder' : 'Build My Resume'}
             </Button>
           </div>
@@ -204,14 +204,13 @@ const Index = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-up" style={{ animationDelay: '0.2s', opacity: 0, animationFillMode: 'forwards' }}>
-            <Button
-              size="lg"
-              className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary font-semibold px-8 h-14 text-base rounded-xl gap-2 group"
-              onClick={() => navigate('/builder')}
+            <button
+              className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary font-semibold px-8 h-14 text-base rounded-xl gap-2 group flex items-center justify-center transition-all"
+              onClick={() => navigate(user ? '/builder' : '/auth', { state: { from: { pathname: '/builder' } } })}
             >
               Build My Resume
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Button>
+            </button>
             <Button
               size="lg"
               variant="outline"
@@ -324,7 +323,7 @@ const Index = () => {
           </div>
 
           <div className="text-center mt-8">
-            <Button onClick={() => navigate('/builder')} variant="outline" className="rounded-xl border-border">
+            <Button onClick={() => navigate(user ? '/builder' : '/auth', { state: { from: { pathname: '/builder' } } })} variant="outline" className="rounded-xl border-border">
               Browse All Templates <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
@@ -404,7 +403,7 @@ const Index = () => {
                     ? 'bg-primary-foreground text-primary hover:bg-primary-foreground/90 font-semibold'
                     : 'bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary'
                     }`}
-                  onClick={() => navigate('/builder')}
+                  onClick={() => navigate(user ? '/builder' : '/auth', { state: { from: { pathname: '/builder' } } })}
                 >
                   {plan.cta}
                 </Button>
@@ -425,7 +424,7 @@ const Index = () => {
           <Button
             size="lg"
             className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary font-semibold px-10 h-14 text-base rounded-xl gap-2 group"
-            onClick={() => navigate('/builder')}
+            onClick={() => navigate(user ? '/builder' : '/auth', { state: { from: { pathname: '/builder' } } })}
           >
             Start Building for Free
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

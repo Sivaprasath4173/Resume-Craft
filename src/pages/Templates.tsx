@@ -182,7 +182,7 @@ export default function Templates() {
 
   const handleSelect = (id: TemplateId) => {
     setTemplate(id);
-    navigate('/builder');
+    navigate(user ? '/builder' : '/auth', { state: { from: { pathname: '/builder' } } });
   };
 
   return (
@@ -234,7 +234,7 @@ export default function Templates() {
               Sign In
             </Button>
           )}
-          <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary rounded-lg gap-2 h-9 text-xs" onClick={() => navigate('/builder')}>
+          <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary rounded-lg gap-2 h-9 text-xs" onClick={() => navigate(user ? '/builder' : '/auth', { state: { from: { pathname: '/builder' } } })}>
             Continue to Builder <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
