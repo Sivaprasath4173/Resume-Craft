@@ -1,6 +1,19 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Sparkles, Zap, FileText, Download, Star, CheckCircle2, Users, Trophy, Palette } from 'lucide-react';
+import { ArrowRight, Sparkles, Zap, FileText, Download, Star, CheckCircle2, Users, Trophy, Palette, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { toast } from 'sonner';
 
 const features = [
   {
@@ -65,6 +78,9 @@ const templates = [
   { name: 'Modern', desc: 'Bold & contemporary', color: 'from-blue-500 to-blue-600' },
   { name: 'Minimal', desc: 'Clean & elegant', color: 'from-slate-600 to-slate-700' },
   { name: 'Professional', desc: 'Classic & trusted', color: 'from-emerald-500 to-emerald-600' },
+  { name: 'Creative', desc: 'Bold & artistic', color: 'from-violet-500 to-violet-600' },
+  { name: 'Executive', desc: 'Premium & elite', color: 'from-amber-600 to-amber-700' },
+  { name: 'Tech', desc: 'Modern & technical', color: 'from-slate-800 to-slate-900' },
 ];
 
 const pricingPlans = [
@@ -98,13 +114,23 @@ const pricingPlans = [
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      toast.success('Signed out successfully');
+    } catch (error) {
+      toast.error('Error signing out');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass border-b">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <FileText className="w-4 h-4 text-primary-foreground" />
             </div>
@@ -116,9 +142,43 @@ const Index = () => {
             <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" className="hidden sm:flex">Sign In</Button>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 overflow-hidden border border-border shadow-sm">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
+                      <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                        {user.displayName?.charAt(0) || user.email?.charAt(0) || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56 mt-2" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{user.displayName || 'User'}</p>
+                      <p className="text-xs leading-none text-muted-foreground italic truncate">
+                        {user.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/builder')} className="gap-2 cursor-pointer">
+                    <FileText className="w-4 h-4" /> My Resumes
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut} className="gap-2 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/5">
+                    <LogOut className="w-4 h-4" /> Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button variant="ghost" size="sm" className="hidden sm:flex" onClick={() => navigate('/auth')}>
+                Sign In
+              </Button>
+            )}
             <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary font-medium" onClick={() => navigate('/builder')}>
-              Build My Resume
+              {user ? 'Go to Builder' : 'Build My Resume'}
             </Button>
           </div>
         </div>
@@ -139,7 +199,7 @@ const Index = () => {
           </h1>
 
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-fade-up" style={{ animationDelay: '0.1s', opacity: 0, animationFillMode: 'forwards' }}>
-            Build ATS-friendly resumes with AI assistance, live preview, and beautiful templates. 
+            Build ATS-friendly resumes with AI assistance, live preview, and beautiful templates.
             Land your dream job faster — no design skills needed.
           </p>
 
@@ -277,7 +337,7 @@ const Index = () => {
           <div className="text-center mb-16">
             <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">Loved by Job Seekers</h2>
             <div className="flex items-center justify-center gap-1">
-              {[1,2,3,4,5].map(i => <Star key={i} className="w-5 h-5 fill-amber-400 text-amber-400" />)}
+              {[1, 2, 3, 4, 5].map(i => <Star key={i} className="w-5 h-5 fill-amber-400 text-amber-400" />)}
               <span className="ml-2 text-muted-foreground text-sm">4.9/5 from 2,400+ reviews</span>
             </div>
           </div>
@@ -286,7 +346,7 @@ const Index = () => {
             {testimonials.map((t) => (
               <div key={t.name} className="bg-card rounded-2xl p-6 shadow-card border border-border">
                 <div className="flex items-center gap-1 mb-4">
-                  {[1,2,3,4,5].map(i => <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />)}
+                  {[1, 2, 3, 4, 5].map(i => <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />)}
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed mb-4">"{t.content}"</p>
                 <div className="flex items-center gap-3">
@@ -316,11 +376,10 @@ const Index = () => {
             {pricingPlans.map((plan) => (
               <div
                 key={plan.name}
-                className={`rounded-2xl p-6 border transition-all ${
-                  plan.highlight
-                    ? 'bg-primary border-primary/20 shadow-primary'
-                    : 'bg-card border-border shadow-card'
-                }`}
+                className={`rounded-2xl p-6 border transition-all ${plan.highlight
+                  ? 'bg-primary border-primary/20 shadow-primary'
+                  : 'bg-card border-border shadow-card'
+                  }`}
               >
                 {plan.highlight && (
                   <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary-foreground/20 text-primary-foreground text-xs font-semibold mb-4">
@@ -341,11 +400,10 @@ const Index = () => {
                   ))}
                 </ul>
                 <Button
-                  className={`w-full rounded-xl ${
-                    plan.highlight
-                      ? 'bg-primary-foreground text-primary hover:bg-primary-foreground/90 font-semibold'
-                      : 'bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary'
-                  }`}
+                  className={`w-full rounded-xl ${plan.highlight
+                    ? 'bg-primary-foreground text-primary hover:bg-primary-foreground/90 font-semibold'
+                    : 'bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary'
+                    }`}
                   onClick={() => navigate('/builder')}
                 >
                   {plan.cta}

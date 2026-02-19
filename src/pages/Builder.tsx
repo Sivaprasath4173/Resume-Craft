@@ -1,34 +1,66 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  User, Briefcase, GraduationCap, Code, FolderOpen, Award, Languages,
+  User as UserIcon, Briefcase, GraduationCap, Code, FolderOpen, Award, Languages,
   ChevronLeft, ChevronRight, Download, Eye, Sparkles, Save, FileText,
-  Plus, Trash2, CheckCircle2, Loader2, ArrowLeft, Palette
+  Plus, Trash2, CheckCircle2, Loader2, ArrowLeft, Palette, LogOut, Layout, GripVertical
 } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { useResumeStore } from '@/hooks/useResumeStore';
-import { ModernTemplate, MinimalTemplate, ProfessionalTemplate } from '@/components/resume/ResumeTemplates';
+import { useResume } from '@/hooks/ResumeContext';
+import { useAuth } from '@/hooks/useAuth';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { toast } from 'sonner';
+import {
+  ModernTemplate, MinimalTemplate, ProfessionalTemplate, CreativeTemplate, ExecutiveTemplate, TechTemplate,
+  ElegantTemplate, TechnicalTemplate, AcademicTemplate, StartupTemplate, CorporateTemplate,
+  DesignerTemplate, SimpleTemplate, VintageTemplate, ModernistTemplate, CompactTemplate
+} from '@/components/resume/ResumeTemplates';
 import { TemplateId } from '@/types/resume';
 
 const sections = [
-  { id: 'personalInfo', label: 'Personal Info', icon: User, desc: 'Basic details' },
+  { id: 'personalInfo', label: 'Personal Info', icon: UserIcon, desc: 'Basic details' },
   { id: 'experience', label: 'Experience', icon: Briefcase, desc: 'Work history' },
   { id: 'education', label: 'Education', icon: GraduationCap, desc: 'Academic background' },
   { id: 'skills', label: 'Skills', icon: Code, desc: 'Technical & soft skills' },
   { id: 'projects', label: 'Projects', icon: FolderOpen, desc: 'Personal & professional' },
   { id: 'certifications', label: 'Certifications', icon: Award, desc: 'Credentials & courses' },
   { id: 'languages', label: 'Languages', icon: Languages, desc: 'Spoken languages' },
+  { id: 'design', label: 'Design', icon: Layout, desc: 'Fonts & Colors' },
 ] as const;
 
 const templates: { id: TemplateId; name: string; color: string }[] = [
   { id: 'modern', name: 'Modern', color: 'bg-slate-800' },
   { id: 'minimal', name: 'Minimal', color: 'bg-slate-400' },
   { id: 'professional', name: 'Professional', color: 'bg-emerald-600' },
+  { id: 'creative', name: 'Creative', color: 'bg-violet-600' },
+  { id: 'executive', name: 'Executive', color: 'bg-amber-700' },
+  { id: 'tech', name: 'Tech', color: 'bg-slate-950 border border-emerald-500' },
+  { id: 'elegant', name: 'Elegant', color: 'bg-orange-50 border border-orange-200' },
+  { id: 'technical', name: 'Dev', color: 'bg-blue-900 shadow-lg shadow-blue-900/20' },
+  { id: 'academic', name: 'Scholar', color: 'bg-stone-100 border-2 border-stone-800' },
+  { id: 'startup', name: 'Unicorn', color: 'bg-indigo-600' },
+  { id: 'corporate', name: 'Global', color: 'bg-sky-950' },
+  { id: 'designer', name: 'Aura', color: 'bg-black shadow-[0_0_15px_rgba(255,255,255,0.1)]' },
+  { id: 'simple', name: 'Pure', color: 'bg-slate-50 border border-slate-200' },
+  { id: 'vintage', name: 'Retro', color: 'bg-[#f4f1ea] border border-[#2c1810]' },
+  { id: 'modernist', name: 'Bauhaus', color: 'bg-gray-100 border-l-4 border-red-600' },
+  { id: 'compact', name: 'Dense', color: 'bg-teal-50 border-t-2 border-teal-900' },
 ];
 
 const aiSuggestions: Record<string, string[]> = {
@@ -52,8 +84,19 @@ export default function Builder() {
   const [aiField, setAiField] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
-  const store = useResumeStore();
+  const store = useResume();
   const { resumeData, completionScore, lastSaved } = store;
+  const { user } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      toast.success('Signed out successfully');
+      navigate('/');
+    } catch (error) {
+      toast.error('Error signing out');
+    }
+  };
 
   const handleDownload = () => {
     window.print();
@@ -75,8 +118,50 @@ export default function Builder() {
 
   const sectionIndex = sections.findIndex(s => s.id === activeSection);
 
+  // Filter out 'design' from draggable sections, keep it separate
+  const activeSectionsList = resumeData.sectionOrder.filter(id => id !== 'design');
+
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+
+    const items = Array.from(activeSectionsList);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    // Add 'design' back at the end or wherever appropriate if needed, but we keep it separate visually
+    const newOrder = [...items, 'design'] as any;
+    store.setSectionOrder(newOrder);
+  };
+
+  // Default design if undefined
+  const design = resumeData.design || { font: 'Inter', accentColor: '#0f172a', margins: 'standard' };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Lora:ital,wght@0,400;0,600;1,400&family=Open+Sans:wght@400;600;800&family=Playfair+Display:wght@400;700;900&family=Roboto:wght@300;400;500;700&display=swap');
+        
+        #resume-preview-content {
+          font-family: '${design.font}', sans-serif !important;
+        }
+        
+        /* Force override inner tailwind classes to respect user choice */
+        #resume-preview-content .font-sans,
+        #resume-preview-content .font-serif,
+        #resume-preview-content .font-mono,
+        #resume-preview-content div,
+        #resume-preview-content p,
+        #resume-preview-content h1,
+        #resume-preview-content h2,
+        #resume-preview-content h3,
+        #resume-preview-content span {
+          font-family: '${design.font}', sans-serif;
+        }
+
+        :root {
+          --resume-accent: ${design.accentColor || '#0f172a'};
+        }
+      `}</style>
       {/* Top bar */}
       <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 gap-4 no-print sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -108,22 +193,66 @@ export default function Builder() {
 
         <div className="flex items-center gap-2">
           {lastSaved && (
-            <span className="text-xs text-muted-foreground hidden md:flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Saved
+            <span className="text-xs text-muted-foreground hidden md:flex items-center gap-1.5 opacity-80">
+              <div className="flex items-center gap-1">
+                {user ? (
+                  <>
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                    <span>Cloud Synced</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Saved Locally</span>
+                  </>
+                )}
+              </div>
             </span>
           )}
-          <Button variant="outline" size="sm" className="gap-2 hidden sm:flex rounded-lg" onClick={() => setShowPreview(!showPreview)}>
-            <Eye className="w-4 h-4" /> {showPreview ? 'Edit' : 'Preview'}
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0 overflow-hidden border border-border shadow-sm">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
+                    <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
+                      {user.displayName?.charAt(0) || user.email?.charAt(0) || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 mt-2" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-xs font-medium leading-none">{user.displayName || 'User'}</p>
+                    <p className="text-[10px] leading-none text-muted-foreground italic truncate">
+                      {user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="gap-2 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/5">
+                  <LogOut className="w-4 h-4" /> Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => navigate('/auth')} className="rounded-lg h-8 text-xs">
+              Sign In
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="gap-2 hidden sm:flex rounded-lg h-8 text-xs" onClick={() => setShowPreview(!showPreview)}>
+            <Eye className="w-3.5 h-3.5" /> {showPreview ? 'Edit' : 'Preview'}
           </Button>
-          <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary rounded-lg gap-2" onClick={handleDownload}>
-            <Download className="w-4 h-4" /> <span className="hidden sm:block">Download PDF</span>
+          <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary rounded-lg gap-2 h-8 text-xs font-medium" onClick={handleDownload}>
+            <Download className="w-3.5 h-3.5" /> <span className="hidden sm:block">Download PDF</span>
           </Button>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar - section nav */}
-        <aside className={`w-52 border-r border-border bg-card flex-shrink-0 overflow-y-auto no-print ${showPreview ? 'hidden md:block' : 'block'}`}>
+        <aside className={`w-52 border-r border-border bg-card flex-shrink-0 overflow-y-auto no-print ${showPreview ? 'hidden' : 'hidden md:block'}`}>
           {/* Template selector */}
           <div className="p-3 border-b border-border">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
@@ -134,11 +263,10 @@ export default function Builder() {
                 <button
                   key={t.id}
                   onClick={() => store.setTemplate(t.id)}
-                  className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border-2 transition-all ${
-                    resumeData.template === t.id
-                      ? 'border-primary bg-primary-light'
-                      : 'border-transparent hover:border-border'
-                  }`}
+                  className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border-2 transition-all ${resumeData.template === t.id
+                    ? 'border-primary bg-primary-light'
+                    : 'border-transparent hover:border-border'
+                    }`}
                 >
                   <div className={`w-8 h-10 ${t.color} rounded-sm`}></div>
                   <span className="text-xs text-muted-foreground">{t.name}</span>
@@ -147,37 +275,88 @@ export default function Builder() {
             </div>
           </div>
 
-          {/* Section nav */}
+          {/* Section nav with Drag & Drop */}
           <nav className="p-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2 pt-1">Sections</p>
-            {sections.map((section, idx) => {
-              const Icon = section.icon;
-              const isActive = activeSection === section.id;
-              return (
-                <button
-                  key={section.id}
-                  onClick={() => { setActiveSection(section.id); setShowPreview(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-left transition-all ${
-                    isActive
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2 pt-1 flex items-center justify-between">
+              Sections
+              <span className="text-[10px] bg-secondary px-1.5 rounded text-muted-foreground/80">Drag to reorder</span>
+            </p>
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <Droppable droppableId="sections-nav">
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef}>
+                    {activeSectionsList.map((sectionId, index) => {
+                      const section = sections.find(s => s.id === sectionId) || { id: sectionId, label: sectionId, icon: FileText, desc: '' };
+                      const Icon = section.icon;
+                      const isActive = activeSection === section.id;
+
+                      return (
+                        <Draggable key={section.id} draggableId={section.id} index={index}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              style={{ ...provided.draggableProps.style }}
+                            >
+                              <button
+                                onClick={() => { setActiveSection(section.id); setShowPreview(false); }}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-left transition-all group relative ${isActive
+                                  ? 'bg-primary text-primary-foreground shadow-primary'
+                                  : 'hover:bg-secondary text-foreground'
+                                  } ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary rotate-2 bg-card z-50' : ''}`}
+                              >
+                                <div className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-30 cursor-grab active:cursor-grabbing" {...provided.dragHandleProps}>
+                                  <GripVertical className="w-3 h-3" />
+                                </div>
+                                <Icon className="w-4 h-4 flex-shrink-0 ml-1.5" />
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium leading-none">{section.label}</div>
+                                  <div className={`text-xs mt-0.5 truncate ${isActive ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                    {section.desc}
+                                  </div>
+                                </div>
+                              </button>
+                            </div>
+                          )}
+                        </Draggable>
+                      );
+                    })}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
+            {/* Design & Info always at bottom, not draggable necessarily or separate */}
+            <div className="mt-2 pt-2 border-t border-border">
+              {['design'].map(id => {
+                const s = sections.find(sec => sec.id === id)!;
+                const Icon = s.icon;
+                const isActive = activeSection === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => { setActiveSection(s.id); setShowPreview(false); }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-left transition-all ${isActive
                       ? 'bg-primary text-primary-foreground shadow-primary'
                       : 'hover:bg-secondary text-foreground'
-                  }`}
-                >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium leading-none">{section.label}</div>
-                    <div className={`text-xs mt-0.5 truncate ${isActive ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                      {section.desc}
+                      }`}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium leading-none">{s.label}</div>
+                      <div className={`text-xs mt-0.5 truncate ${isActive ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                        {s.desc}
+                      </div>
                     </div>
-                  </div>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
           </nav>
         </aside>
 
         {/* Main form area */}
-        <main className={`flex-1 overflow-y-auto ${showPreview ? 'hidden md:block' : 'block'}`}>
+        <main className={`flex-1 overflow-y-auto ${showPreview ? 'hidden' : 'block'}`}>
           <div className="max-w-2xl mx-auto p-6">
             {activeSection === 'personalInfo' && (
               <PersonalInfoForm store={store} onAISuggest={handleAISuggest} aiLoading={aiLoading} aiField={aiField} onApplySuggestion={applyAISuggestion} />
@@ -188,6 +367,7 @@ export default function Builder() {
             {activeSection === 'projects' && <ProjectsForm store={store} />}
             {activeSection === 'certifications' && <CertificationsForm store={store} />}
             {activeSection === 'languages' && <LanguagesForm store={store} />}
+            {activeSection === 'design' && <DesignForm store={store} showPreview={showPreview} setShowPreview={setShowPreview} />}
 
             {/* Next/Prev navigation */}
             <div className="flex justify-between mt-8 pt-6 border-t border-border">
@@ -219,24 +399,46 @@ export default function Builder() {
         </main>
 
         {/* Right preview panel */}
-        <aside className={`w-[420px] flex-shrink-0 border-l border-border bg-secondary/30 overflow-y-auto ${showPreview ? 'block' : 'hidden lg:block'}`}>
-          <div className="sticky top-0 z-10 bg-card border-b border-border px-4 py-2.5 flex items-center justify-between no-print">
-            <span className="text-sm font-semibold text-foreground">Live Preview</span>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span className="text-xs text-muted-foreground">Auto-updating</span>
+        {/* Right preview panel */}
+        <aside className={`flex-shrink-0 border-l border-border bg-secondary/30 overflow-y-auto duration-300 transition-all ${showPreview ? 'fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-8' : 'w-[420px] hidden lg:block'}`}>
+          {!showPreview && (
+            <div className="sticky top-0 z-10 bg-card border-b border-border px-4 py-2.5 flex items-center justify-between no-print">
+              <span className="text-sm font-semibold text-foreground">Live Preview</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span className="text-xs text-muted-foreground">Auto-updating</span>
+              </div>
             </div>
-          </div>
-          <div className="p-4" id="resume-preview" ref={previewRef}>
-            <div className="bg-card rounded-xl overflow-hidden shadow-card border border-border" style={{ minHeight: '600px' }}>
+          )}
+
+          <div className={`${showPreview ? 'w-[210mm] max-w-full h-[85vh] overflow-y-auto bg-white text-slate-950 rounded shadow-2xl animate-scale-in relative scrollbar-hide' : 'p-4'}`} id="resume-preview" ref={previewRef}>
+            {showPreview && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="sticky top-2 right-2 left-full ml-auto z-50 hover:bg-slate-100 rounded-full text-slate-500 hover:text-red-500"
+                onClick={() => setShowPreview(false)}
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            )}
+            <div id="resume-preview-content" className={`overflow-hidden ${showPreview ? 'min-h-[297mm] bg-white' : 'bg-card rounded-xl shadow-card border border-border'}`} style={{ minHeight: showPreview ? '297mm' : '600px', transform: 'scale(1)', transformOrigin: 'top center' }}>
               {resumeData.template === 'modern' && <ModernTemplate data={resumeData} />}
               {resumeData.template === 'minimal' && <MinimalTemplate data={resumeData} />}
               {resumeData.template === 'professional' && <ProfessionalTemplate data={resumeData} />}
-            </div>
-            {/* Watermark for free */}
-            <div className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-              <span>Free version</span>
-              <Badge variant="secondary" className="text-xs">Upgrade to remove watermark</Badge>
+              {resumeData.template === 'creative' && <CreativeTemplate data={resumeData} />}
+              {resumeData.template === 'executive' && <ExecutiveTemplate data={resumeData} />}
+              {resumeData.template === 'tech' && <TechTemplate data={resumeData} />}
+              {resumeData.template === 'elegant' && <ElegantTemplate data={resumeData} />}
+              {resumeData.template === 'technical' && <TechnicalTemplate data={resumeData} />}
+              {resumeData.template === 'academic' && <AcademicTemplate data={resumeData} />}
+              {resumeData.template === 'startup' && <StartupTemplate data={resumeData} />}
+              {resumeData.template === 'corporate' && <CorporateTemplate data={resumeData} />}
+              {resumeData.template === 'designer' && <DesignerTemplate data={resumeData} />}
+              {resumeData.template === 'simple' && <SimpleTemplate data={resumeData} />}
+              {resumeData.template === 'vintage' && <VintageTemplate data={resumeData} />}
+              {resumeData.template === 'modernist' && <ModernistTemplate data={resumeData} />}
+              {resumeData.template === 'compact' && <CompactTemplate data={resumeData} />}
             </div>
           </div>
         </aside>
@@ -356,7 +558,7 @@ function PersonalInfoForm({ store, onAISuggest, aiLoading, aiField, onApplySugge
             <AISuggestionPanel
               suggestions={aiSuggestions.summary}
               onApply={onApplySuggestion}
-              onClose={() => {}}
+              onClose={() => { }}
             />
           )}
         </div>
@@ -655,6 +857,117 @@ function LanguagesForm({ store }: any) {
         <Button onClick={store.addLanguage} variant="outline" className="w-full rounded-xl border-dashed gap-2 hover:border-primary hover:text-primary">
           <Plus className="w-4 h-4" /> Add Language
         </Button>
+      </div>
+    </div>
+  );
+}
+
+function DesignForm({ store, showPreview, setShowPreview }: any) {
+  const { design = { font: 'Inter', accentColor: '#0f172a', margins: 'standard' } } = store.resumeData;
+
+  const fonts = [
+    { name: 'Inter', class: 'font-sans' },
+    { name: 'Roboto', class: 'font-sans' },
+    { name: 'Playfair Display', class: 'font-serif' },
+    { name: 'Lora', class: 'font-serif' },
+    { name: 'Open Sans', class: 'font-sans' },
+  ];
+
+  const margins = [
+    { id: 'compact', label: 'Compact' },
+    { id: 'standard', label: 'Standard' },
+    { id: 'relaxed', label: 'Relaxed' },
+  ];
+
+  const colors = [
+    '#0f172a', // Slate 900
+    '#2563eb', // Blue 600
+    '#059669', // Emerald 600
+    '#7c3aed', // Violet 600
+    '#db2777', // Pink 600
+    '#dc2626', // Red 600
+    '#d97706', // Amber 600
+    '#000000', // Black
+  ];
+
+  const update = (key: string, value: any) => {
+    store.setResumeData({
+      ...store.resumeData,
+      design: { ...design, [key]: value }
+    });
+  };
+
+  return (
+    <div>
+      <SectionHeader title="Design & Formatting" desc="Customize the look and feel of your resume." />
+
+      <div className="space-y-6">
+        {/* Preview Button in Design Tab for Quick Access */}
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-sm text-primary mb-1">Preview Mode</h3>
+            <p className="text-xs text-muted-foreground">View your resume in full screen.</p>
+          </div>
+          <Button onClick={() => setShowPreview(true)} size="sm" className="gap-2">
+            <Eye className="w-4 h-4" /> Open Preview
+          </Button>
+        </div>
+
+        <div>
+          <Label className="text-xs mb-3 block font-semibold">Accent Color</Label>
+          <div className="flex flex-wrap gap-3">
+            {colors.map(c => (
+              <button
+                key={c}
+                onClick={() => update('accentColor', c)}
+                className={`w-8 h-8 rounded-full border-2 transition-transform ${design.accentColor === c ? 'border-primary scale-110' : 'border-transparent hover:scale-110'}`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+            <div className="relative">
+              <input
+                type="color"
+                value={design.accentColor}
+                onChange={(e) => update('accentColor', e.target.value)}
+                className="w-8 h-8 rounded-full overflow-hidden cursor-pointer border-0 p-0"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <Label className="text-xs mb-3 block font-semibold">Typography</Label>
+          <div className="grid grid-cols-2 gap-3">
+            {fonts.map((f) => (
+              <div
+                key={f.name}
+                onClick={() => update('font', f.name)}
+                className={`p-3 border rounded-xl cursor-pointer transition-all ${design.font === f.name ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:border-primary/50'}`}
+              >
+                <div className="text-sm font-medium">{f.name}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">The quick brown fox...</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <Label className="text-xs mb-3 block font-semibold">Spacing & Margins</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {margins.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => update('margins', m.id)}
+                className={`p-2.5 text-xs font-medium border rounded-lg transition-all ${design.margins === m.id
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'text-slate-600 hover:border-slate-400'
+                  }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

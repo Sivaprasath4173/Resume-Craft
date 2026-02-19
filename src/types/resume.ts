@@ -63,7 +63,16 @@ export interface Skill {
   category: string;
 }
 
-export type TemplateId = 'modern' | 'minimal' | 'professional';
+export type TemplateId =
+  | 'modern' | 'minimal' | 'professional' | 'creative' | 'executive' | 'tech'
+  | 'elegant' | 'technical' | 'academic' | 'startup' | 'corporate'
+  | 'designer' | 'simple' | 'vintage' | 'modernist' | 'compact';
+
+export interface ResumeDesign {
+  font: string;
+  accentColor: string;
+  margins: 'compact' | 'standard' | 'relaxed';
+}
 
 export interface ResumeData {
   personalInfo: PersonalInfo;
@@ -75,16 +84,18 @@ export interface ResumeData {
   skills: Skill[];
   template: TemplateId;
   sectionOrder: ResumeSection[];
+  design?: ResumeDesign;
 }
 
-export type ResumeSection = 
+export type ResumeSection =
   | 'personalInfo'
   | 'experience'
   | 'education'
   | 'skills'
   | 'projects'
   | 'certifications'
-  | 'languages';
+  | 'languages'
+  | 'design';
 
 export const defaultResumeData: ResumeData = {
   personalInfo: {
@@ -106,4 +117,9 @@ export const defaultResumeData: ResumeData = {
   skills: [],
   template: 'modern',
   sectionOrder: ['personalInfo', 'experience', 'education', 'skills', 'projects', 'certifications', 'languages'],
+  design: {
+    font: 'Inter',
+    accentColor: '#0f172a',
+    margins: 'standard',
+  },
 };
