@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { ResumeData, defaultResumeData, ResumeSection, TemplateId } from '@/types/resume';
+import { ResumeData, defaultResumeData, ResumeSection, TemplateId, ResumeVariant } from '@/types/resume';
 import { useAuth } from './useAuth';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -33,6 +33,10 @@ interface ResumeContextType {
     setResumeData: React.Dispatch<React.SetStateAction<ResumeData>>;
     clearData: () => void;
     loading: boolean;
+    addVariant: (variant: ResumeVariant) => void;
+    updateVariant: (id: string, updates: Partial<ResumeVariant>) => void;
+    removeVariant: (id: string) => void;
+    setActiveVariantId: (id: string | null) => void;
 }
 
 const ResumeContext = createContext<ResumeContextType | undefined>(undefined);
@@ -279,6 +283,32 @@ export const ResumeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         localStorage.removeItem(STORAGE_KEY);
     }, []);
 
+    const addVariant = useCallback((variant: ResumeVariant) => {
+        setResumeData(prev => ({
+            ...prev,
+            variants: [...(prev.variants ?? []).filter(v => v.id !== variant.id), variant],
+        }));
+    }, []);
+
+    const updateVariant = useCallback((id: string, updates: Partial<ResumeVariant>) => {
+        setResumeData(prev => ({
+            ...prev,
+            variants: (prev.variants ?? []).map(v => v.id === id ? { ...v, ...updates } : v),
+        }));
+    }, []);
+
+    const removeVariant = useCallback((id: string) => {
+        setResumeData(prev => ({
+            ...prev,
+            variants: (prev.variants ?? []).filter(v => v.id !== id),
+            activeVariantId: prev.activeVariantId === id ? null : prev.activeVariantId,
+        }));
+    }, []);
+
+    const setActiveVariantId = useCallback((id: string | null) => {
+        setResumeData(prev => ({ ...prev, activeVariantId: id }));
+    }, []);
+
     const completionScore = (() => {
         let score = 0;
         const p = resumeData.personalInfo;
@@ -303,7 +333,8 @@ export const ResumeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             addCertification, updateCertification, removeCertification,
             addLanguage, updateLanguage, removeLanguage,
             addSkill, updateSkill, removeSkill,
-            setTemplate, setSectionOrder, clearData, setResumeData
+            setTemplate, setSectionOrder, clearData, setResumeData,
+            addVariant, updateVariant, removeVariant, setActiveVariantId,
         }}>
             {children}
         </ResumeContext.Provider>

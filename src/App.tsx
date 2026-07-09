@@ -5,11 +5,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
 import { ResumeProvider } from "./hooks/ResumeContext";
+import { TrackerProvider } from "./hooks/useTracker";
 import Index from "./pages/Index";
 import Builder from "./pages/Builder";
 import Templates from "./pages/Templates";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Tracker from "./pages/Tracker";
+import ReviewView from "./pages/ReviewView";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -19,27 +22,39 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <ResumeProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route
-                path="/builder"
-                element={
-                  <ProtectedRoute>
-                    <Builder />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/templates" element={<Templates />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+        <TrackerProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route
+                  path="/builder"
+                  element={
+                    <ProtectedRoute>
+                      <Builder />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tracker"
+                  element={
+                    <ProtectedRoute>
+                      <Tracker />
+                    </ProtectedRoute>
+                  }
+                />
+                {/* Public review route — no auth required */}
+                <Route path="/review/:token" element={<ReviewView />} />
+                <Route path="/templates" element={<Templates />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </TrackerProvider>
       </ResumeProvider>
     </AuthProvider>
   </QueryClientProvider>

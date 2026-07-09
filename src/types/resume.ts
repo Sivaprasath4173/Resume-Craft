@@ -1,3 +1,5 @@
+export type RoleTag = 'SDE' | 'AI/GenAI' | 'Full-stack' | 'Data' | 'DevOps' | 'Design' | 'PM' | 'Quant' | 'Embedded' | 'Mobile';
+
 export interface PersonalInfo {
   fullName: string;
   jobTitle: string;
@@ -30,6 +32,7 @@ export interface Experience {
   endDate: string;
   current: boolean;
   description: string;
+  roleTags?: RoleTag[];
 }
 
 export interface Project {
@@ -40,6 +43,7 @@ export interface Project {
   link: string;
   startDate: string;
   endDate: string;
+  roleTags?: RoleTag[];
 }
 
 export interface Certification {
@@ -61,6 +65,7 @@ export interface Skill {
   name: string;
   level: 'Expert' | 'Advanced' | 'Intermediate' | 'Beginner';
   category: string;
+  roleTags?: RoleTag[];
 }
 
 export type TemplateId =
@@ -74,6 +79,18 @@ export interface ResumeDesign {
   margins: 'compact' | 'standard' | 'relaxed';
 }
 
+/** Represents a saved role-specific variant of the master resume */
+export interface ResumeVariant {
+  id: string;
+  name: string;
+  targetRole: RoleTag | string;
+  createdAt: string; // ISO string
+  /** Map of item id -> visible (true) or hidden (false) */
+  visibleItems: Record<string, boolean>;
+  /** Ordered item IDs per section, for custom ordering within a variant */
+  sectionItemOrder: Record<string, string[]>;
+}
+
 export interface ResumeData {
   personalInfo: PersonalInfo;
   education: Education[];
@@ -85,6 +102,8 @@ export interface ResumeData {
   template: TemplateId;
   sectionOrder: ResumeSection[];
   design?: ResumeDesign;
+  variants?: ResumeVariant[];
+  activeVariantId?: string | null;
 }
 
 export type ResumeSection =
@@ -122,4 +141,6 @@ export const defaultResumeData: ResumeData = {
     accentColor: '#0f172a',
     margins: 'standard',
   },
+  variants: [],
+  activeVariantId: null,
 };

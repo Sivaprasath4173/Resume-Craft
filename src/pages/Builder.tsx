@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   User as UserIcon, Briefcase, GraduationCap, Code, FolderOpen, Award, Languages,
-  ChevronLeft, ChevronRight, Download, Eye, Sparkles, Save, FileText,
-  Plus, Trash2, CheckCircle2, Loader2, ArrowLeft, Palette, LogOut, Layout, GripVertical
+  ChevronLeft, ChevronRight, Download, Eye, FileText,
+  Plus, Trash2, CheckCircle2, Loader2, ArrowLeft, Palette, LogOut, Layout, GripVertical,
+  Target, GitBranch, Brain, Share2, LayoutGrid, Copy, MessageSquare
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useResume } from '@/hooks/ResumeContext';
 import { useAuth } from '@/hooks/useAuth';
 import { auth } from '@/lib/firebase';
@@ -27,11 +29,15 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from 'sonner';
 import {
-  ModernTemplate, MinimalTemplate, ProfessionalTemplate, CreativeTemplate, ExecutiveTemplate, TechTemplate,
-  ElegantTemplate, TechnicalTemplate, AcademicTemplate, StartupTemplate, CorporateTemplate,
-  DesignerTemplate, SimpleTemplate, VintageTemplate, ModernistTemplate, CompactTemplate
+  ModernTemplate, MinimalTemplate, ProfessionalTemplate
 } from '@/components/resume/ResumeTemplates';
 import { TemplateId } from '@/types/resume';
+import { ATSPanel } from '@/components/ats/ATSPanel';
+import { VariantPanel } from '@/components/variants/VariantPanel';
+import { RoleTagSelector } from '@/components/variants/RoleTagSelector';
+import { BulletRewriter } from '@/components/ai/BulletRewriter';
+import { InterviewPrepPanel } from '@/components/interview/InterviewPrepPanel';
+import { createShareLink, subscribeUnreadCount } from '@/lib/shareLinks';
 
 const sections = [
   { id: 'personalInfo', label: 'Personal Info', icon: UserIcon, desc: 'Basic details' },
@@ -44,49 +50,42 @@ const sections = [
   { id: 'design', label: 'Design', icon: Layout, desc: 'Fonts & Colors' },
 ] as const;
 
+// Pinned (non-draggable) extra sections
+const pinnedSections = [
+  { id: 'ats', label: 'ATS Score', icon: Target, desc: 'Readability & JD match' },
+  { id: 'variants', label: 'Variants', icon: GitBranch, desc: 'Role-based versions' },
+  { id: 'interview', label: 'Interview Prep', icon: Brain, desc: 'AI-generated questions' },
+] as const;
+
 const templates: { id: TemplateId; name: string; color: string }[] = [
   { id: 'modern', name: 'Modern', color: 'bg-slate-800' },
   { id: 'minimal', name: 'Minimal', color: 'bg-slate-400' },
   { id: 'professional', name: 'Professional', color: 'bg-emerald-600' },
-  { id: 'creative', name: 'Creative', color: 'bg-violet-600' },
-  { id: 'executive', name: 'Executive', color: 'bg-amber-700' },
-  { id: 'tech', name: 'Tech', color: 'bg-slate-950 border border-emerald-500' },
-  { id: 'elegant', name: 'Elegant', color: 'bg-orange-50 border border-orange-200' },
-  { id: 'technical', name: 'Dev', color: 'bg-blue-900 shadow-lg shadow-blue-900/20' },
-  { id: 'academic', name: 'Scholar', color: 'bg-stone-100 border-2 border-stone-800' },
-  { id: 'startup', name: 'Unicorn', color: 'bg-indigo-600' },
-  { id: 'corporate', name: 'Global', color: 'bg-sky-950' },
-  { id: 'designer', name: 'Aura', color: 'bg-black shadow-[0_0_15px_rgba(255,255,255,0.1)]' },
-  { id: 'simple', name: 'Pure', color: 'bg-slate-50 border border-slate-200' },
-  { id: 'vintage', name: 'Retro', color: 'bg-[#f4f1ea] border border-[#2c1810]' },
-  { id: 'modernist', name: 'Bauhaus', color: 'bg-gray-100 border-l-4 border-red-600' },
-  { id: 'compact', name: 'Dense', color: 'bg-teal-50 border-t-2 border-teal-900' },
 ];
-
-const aiSuggestions: Record<string, string[]> = {
-  summary: [
-    'Results-driven software engineer with 3+ years of experience building scalable web applications using React and Node.js.',
-    'Creative product designer passionate about crafting intuitive user experiences that drive engagement and business growth.',
-    'Recent CS graduate eager to contribute technical skills and fresh perspectives to an innovative development team.',
-  ],
-  description: [
-    'Developed and maintained RESTful APIs serving 100K+ daily active users, reducing response time by 40%.',
-    'Led cross-functional team of 5 engineers to deliver mobile app 2 weeks ahead of schedule under tight deadline.',
-    'Implemented automated testing suite achieving 90% code coverage, eliminating critical production bugs.',
-  ],
-};
 
 export default function Builder() {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<string>('personalInfo');
   const [showPreview, setShowPreview] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiField, setAiField] = useState<string | null>(null);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const previewRef = useRef<HTMLDivElement>(null);
 
   const store = useResume();
   const { resumeData, completionScore, lastSaved } = store;
   const { user } = useAuth();
+
+  // Subscribe to unread review comments if we have a share token
+  useEffect(() => {
+    const stored = localStorage.getItem(`share_token_${user?.uid}`);
+    if (stored) {
+      setShareToken(stored);
+      const unsub = subscribeUnreadCount(stored, setUnreadCount);
+      return unsub;
+    }
+  }, [user?.uid]);
 
   const handleSignOut = async () => {
     try {
@@ -115,19 +114,23 @@ export default function Builder() {
     }, 100);
   };
 
-  const handleAISuggest = async (field: string) => {
-    setAiField(field);
-    setAiLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
-    setAiLoading(false);
+  const handleShare = async () => {
+    if (!user) { toast.error('Sign in to share your resume'); return; }
+    setShareLoading(true);
+    try {
+      const token = await createShareLink(user.uid, resumeData, 'comment');
+      setShareToken(token);
+      localStorage.setItem(`share_token_${user.uid}`, token);
+      setUnreadCount(0);
+      setShareDialogOpen(true);
+    } catch {
+      toast.error('Failed to create share link');
+    } finally {
+      setShareLoading(false);
+    }
   };
 
-  const applyAISuggestion = (text: string) => {
-    if (aiField === 'summary') {
-      store.updatePersonalInfo({ summary: text });
-    }
-    setAiField(null);
-  };
+  const shareUrl = shareToken ? `${window.location.origin}/review/${shareToken}` : '';
 
   const sectionIndex = sections.findIndex(s => s.id === activeSection);
 
@@ -244,6 +247,10 @@ export default function Builder() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/tracker')} className="gap-2 cursor-pointer">
+                  <LayoutGrid className="w-4 h-4" /> Applications Tracker
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="gap-2 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/5">
                   <LogOut className="w-4 h-4" /> Sign Out
                 </DropdownMenuItem>
@@ -254,6 +261,22 @@ export default function Builder() {
               Sign In
             </Button>
           )}
+          {/* Share for review button */}
+          <Button
+            variant="outline" size="sm"
+            className="gap-1.5 hidden sm:flex rounded-lg h-8 text-xs relative"
+            onClick={unreadCount > 0 ? () => setShareDialogOpen(true) : handleShare}
+            disabled={shareLoading}
+          >
+            {shareLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
+            {unreadCount > 0 ? (
+              <>
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{unreadCount}</span>
+                <MessageSquare className="w-3.5 h-3.5" />
+              </>
+            ) : null}
+            Share
+          </Button>
           <Button variant="outline" size="sm" className="gap-2 hidden sm:flex rounded-lg h-8 text-xs" onClick={() => setShowPreview(!showPreview)}>
             <Eye className="w-3.5 h-3.5" /> {showPreview ? 'Edit' : 'Preview'}
           </Button>
@@ -339,28 +362,33 @@ export default function Builder() {
                 )}
               </Droppable>
             </DragDropContext>
-            {/* Design & Info always at bottom, not draggable necessarily or separate */}
+            {/* Pinned sections (non-draggable): Design + new features */}
             <div className="mt-2 pt-2 border-t border-border">
-              {['design'].map(id => {
-                const s = sections.find(sec => sec.id === id)!;
+              {['design', ...pinnedSections.map(s => s.id)].map(id => {
+                const s =
+                  (sections as readonly { id: string; label: string; icon: any; desc: string }[]).find(sec => sec.id === id)
+                  ?? pinnedSections.find(sec => sec.id === id)!;
                 const Icon = s.icon;
                 const isActive = activeSection === s.id;
                 return (
                   <button
                     key={s.id}
                     onClick={() => { setActiveSection(s.id); setShowPreview(false); }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-left transition-all ${isActive
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-left transition-all relative ${isActive
                       ? 'bg-primary text-primary-foreground shadow-primary'
                       : 'hover:bg-secondary text-foreground'
                       }`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium leading-none">{s.label}</div>
                       <div className={`text-xs mt-0.5 truncate ${isActive ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                         {s.desc}
                       </div>
                     </div>
+                    {s.id === 'ats' && (
+                      <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold">Live</span>
+                    )}
                   </button>
                 );
               })}
@@ -372,42 +400,54 @@ export default function Builder() {
         <main className={`flex-1 overflow-y-auto no-print ${showPreview ? 'hidden' : 'block'}`}>
           <div className="max-w-2xl mx-auto p-6">
             {activeSection === 'personalInfo' && (
-              <PersonalInfoForm store={store} onAISuggest={handleAISuggest} aiLoading={aiLoading} aiField={aiField} onApplySuggestion={applyAISuggestion} />
+              <PersonalInfoForm store={store} />
             )}
-            {activeSection === 'experience' && <ExperienceForm store={store} onAISuggest={handleAISuggest} aiLoading={aiLoading} />}
+            {activeSection === 'experience' && <ExperienceForm store={store} />}
             {activeSection === 'education' && <EducationForm store={store} />}
             {activeSection === 'skills' && <SkillsForm store={store} />}
             {activeSection === 'projects' && <ProjectsForm store={store} />}
             {activeSection === 'certifications' && <CertificationsForm store={store} />}
             {activeSection === 'languages' && <LanguagesForm store={store} />}
             {activeSection === 'design' && <DesignForm store={store} showPreview={showPreview} setShowPreview={setShowPreview} />}
+            {activeSection === 'ats' && <ATSPanel resumeData={resumeData} />}
+            {activeSection === 'variants' && (
+              <VariantPanel
+                resumeData={resumeData}
+                onSaveVariant={store.addVariant}
+                onDeleteVariant={store.removeVariant}
+                onSetActiveVariant={store.setActiveVariantId}
+              />
+            )}
+            {activeSection === 'interview' && <InterviewPrepPanel resumeData={resumeData} />}
 
-            {/* Next/Prev navigation */}
-            <div className="flex justify-between mt-8 pt-6 border-t border-border">
-              <Button
-                variant="outline"
-                onClick={() => sectionIndex > 0 && setActiveSection(sections[sectionIndex - 1].id)}
-                disabled={sectionIndex === 0}
-                className="gap-2 rounded-xl"
-              >
-                <ChevronLeft className="w-4 h-4" /> Previous
-              </Button>
-              {sectionIndex < sections.length - 1 ? (
+            {/* Next/Prev navigation — only for main content sections */}
+            {!['ats', 'variants', 'interview'].includes(activeSection) && (
+              <div className="flex justify-between mt-8 pt-6 border-t border-border">
                 <Button
-                  onClick={() => setActiveSection(sections[sectionIndex + 1].id)}
-                  className="gap-2 bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary rounded-xl"
+                  variant="outline"
+                  onClick={() => sectionIndex > 0 && setActiveSection(sections[sectionIndex - 1].id)}
+                  disabled={sectionIndex === 0}
+                  className="gap-2 rounded-xl"
                 >
-                  Next <ChevronRight className="w-4 h-4" />
+                  <ChevronLeft className="w-4 h-4" /> Previous
                 </Button>
-              ) : (
-                <Button
-                  onClick={handleDownload}
-                  className="gap-2 bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary rounded-xl"
-                >
-                  <Download className="w-4 h-4" /> Download PDF
-                </Button>
-              )}
-            </div>
+                {sectionIndex < sections.length - 1 ? (
+                  <Button
+                    onClick={() => setActiveSection(sections[sectionIndex + 1].id)}
+                    className="gap-2 bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary rounded-xl"
+                  >
+                    Next <ChevronRight className="w-4 h-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleDownload}
+                    className="gap-2 bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary rounded-xl"
+                  >
+                    <Download className="w-4 h-4" /> Download PDF
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </main>
 
@@ -439,23 +479,70 @@ export default function Builder() {
               {resumeData.template === 'modern' && <ModernTemplate data={resumeData} />}
               {resumeData.template === 'minimal' && <MinimalTemplate data={resumeData} />}
               {resumeData.template === 'professional' && <ProfessionalTemplate data={resumeData} />}
-              {resumeData.template === 'creative' && <CreativeTemplate data={resumeData} />}
-              {resumeData.template === 'executive' && <ExecutiveTemplate data={resumeData} />}
-              {resumeData.template === 'tech' && <TechTemplate data={resumeData} />}
-              {resumeData.template === 'elegant' && <ElegantTemplate data={resumeData} />}
-              {resumeData.template === 'technical' && <TechnicalTemplate data={resumeData} />}
-              {resumeData.template === 'academic' && <AcademicTemplate data={resumeData} />}
-              {resumeData.template === 'startup' && <StartupTemplate data={resumeData} />}
-              {resumeData.template === 'corporate' && <CorporateTemplate data={resumeData} />}
-              {resumeData.template === 'designer' && <DesignerTemplate data={resumeData} />}
-              {resumeData.template === 'simple' && <SimpleTemplate data={resumeData} />}
-              {resumeData.template === 'vintage' && <VintageTemplate data={resumeData} />}
-              {resumeData.template === 'modernist' && <ModernistTemplate data={resumeData} />}
-              {resumeData.template === 'compact' && <CompactTemplate data={resumeData} />}
             </div>
           </div>
         </aside>
       </div>
+
+      {/* Share for Review Dialog */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="w-4 h-4 text-primary" /> Share for Review
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Share this link with a peer or mentor. They can view your resume and leave inline comments — no account needed.
+            </p>
+            {shareUrl && (
+              <div className="flex gap-2">
+                <div className="flex-1 bg-secondary rounded-xl px-3 py-2 text-xs text-foreground font-mono truncate">
+                  {shareUrl}
+                </div>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="rounded-xl flex-shrink-0"
+                  onClick={() => { navigator.clipboard.writeText(shareUrl); toast.success('Link copied!'); }}
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+            {unreadCount > 0 && (
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <MessageSquare className="w-4 h-4 text-amber-600" />
+                <p className="text-xs text-amber-700 font-medium">
+                  {unreadCount} new comment{unreadCount !== 1 ? 's' : ''} waiting for you.
+                </p>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 rounded-xl text-xs"
+                onClick={handleShare}
+                disabled={shareLoading}
+              >
+                {shareLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
+                Generate New Link
+              </Button>
+              {shareToken && (
+                <Button
+                  size="sm"
+                  className="flex-1 rounded-xl text-xs"
+                  onClick={() => window.open(`/review/${shareToken}`, '_blank')}
+                >
+                  <Eye className="w-3.5 h-3.5" /> Open Review Page
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -471,43 +558,7 @@ function SectionHeader({ title, desc }: { title: string; desc: string }) {
   );
 }
 
-function AIButton({ onClick, loading, field, activeField }: { onClick: () => void; loading: boolean; field: string; activeField: string | null }) {
-  const isLoading = loading && activeField === field;
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={onClick}
-      disabled={loading}
-      className="gap-2 text-primary border-primary/30 hover:bg-primary-light rounded-lg text-xs"
-    >
-      {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-      Improve with AI
-    </Button>
-  );
-}
-
-function AISuggestionPanel({ suggestions, onApply, onClose }: { suggestions: string[]; onApply: (s: string) => void; onClose: () => void }) {
-  return (
-    <div className="mt-2 p-3 bg-primary-light border border-primary/20 rounded-xl animate-scale-in">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-primary flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5" /> AI Suggestions
-        </span>
-        <button onClick={onClose} className="text-xs text-muted-foreground hover:text-foreground">Dismiss</button>
-      </div>
-      <div className="space-y-2">
-        {suggestions.map((s, i) => (
-          <div key={i} className="p-2.5 bg-card rounded-lg border border-border text-xs text-foreground leading-relaxed cursor-pointer hover:border-primary/40 transition-colors" onClick={() => { onApply(s); onClose(); }}>
-            {s}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PersonalInfoForm({ store, onAISuggest, aiLoading, aiField, onApplySuggestion }: any) {
+function PersonalInfoForm({ store }: any) {
   const p = store.resumeData.personalInfo;
   const update = (key: string, value: string) => store.updatePersonalInfo({ [key]: value });
 
@@ -556,10 +607,7 @@ function PersonalInfoForm({ store, onAISuggest, aiLoading, aiField, onApplySugge
           </div>
         </div>
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <Label className="text-xs">Professional Summary</Label>
-            <AIButton onClick={() => onAISuggest('summary')} loading={aiLoading} field="summary" activeField={aiField} />
-          </div>
+          <Label className="text-xs mb-1.5 block">Professional Summary</Label>
           <Textarea
             value={p.summary}
             onChange={e => update('summary', e.target.value)}
@@ -567,20 +615,13 @@ function PersonalInfoForm({ store, onAISuggest, aiLoading, aiField, onApplySugge
             rows={4}
             className="rounded-xl resize-none"
           />
-          {aiField === 'summary' && !aiLoading && (
-            <AISuggestionPanel
-              suggestions={aiSuggestions.summary}
-              onApply={onApplySuggestion}
-              onClose={() => { }}
-            />
-          )}
         </div>
       </div>
     </div>
   );
 }
 
-function ExperienceForm({ store, onAISuggest, aiLoading }: any) {
+function ExperienceForm({ store }: any) {
   const { experience } = store.resumeData;
 
   return (
@@ -630,17 +671,27 @@ function ExperienceForm({ store, onAISuggest, aiLoading }: any) {
                 />
                 <Label htmlFor={`current-${exp.id}`} className="text-xs cursor-pointer">I currently work here</Label>
               </div>
+              {/* Role Tags */}
+              <RoleTagSelector
+                selected={exp.roleTags ?? []}
+                onChange={tags => store.updateExperience(exp.id, { roleTags: tags })}
+              />
               <div>
-                <div className="flex items-center justify-between mb-1.5">
+                <div className="mb-1.5">
                   <Label className="text-xs">Description</Label>
-                  <AIButton onClick={() => onAISuggest('description')} loading={aiLoading} field={`desc-${exp.id}`} activeField={null} />
                 </div>
                 <Textarea
                   value={exp.description}
                   onChange={e => store.updateExperience(exp.id, { description: e.target.value })}
-                  placeholder="• Developed features that improved user engagement by 25%&#10;• Led a team of 4 engineers to deliver project on time"
+                  placeholder={`• Developed features that improved user engagement by 25%\n• Led a team of 4 engineers to deliver project on time`}
                   rows={4}
                   className="rounded-xl resize-none"
+                />
+                {/* AI Bullet Rewriter */}
+                <BulletRewriter
+                  original={exp.description}
+                  onAccept={text => store.updateExperience(exp.id, { description: text })}
+                  label="description"
                 />
               </div>
             </div>
@@ -717,24 +768,30 @@ function SkillsForm({ store }: any) {
       <SectionHeader title="Skills" desc="Add your technical skills, tools, and technologies." />
       <div className="space-y-3">
         {skills.map((skill: any) => (
-          <div key={skill.id} className="flex gap-3 items-center">
-            <Input
-              value={skill.name}
-              onChange={e => store.updateSkill(skill.id, { name: e.target.value })}
-              placeholder="e.g. React, Python, Figma"
-              className="rounded-xl flex-1"
+          <div key={skill.id} className="bg-card border border-border rounded-xl p-3 space-y-2">
+            <div className="flex gap-3 items-center">
+              <Input
+                value={skill.name}
+                onChange={e => store.updateSkill(skill.id, { name: e.target.value })}
+                placeholder="e.g. React, Python, Figma"
+                className="rounded-xl flex-1"
+              />
+              <Select value={skill.level} onValueChange={v => store.updateSkill(skill.id, { level: v })}>
+                <SelectTrigger className="w-36 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {levels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button variant="ghost" size="sm" onClick={() => store.removeSkill(skill.id)} className="text-destructive hover:bg-destructive/10 rounded-lg px-2">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+            <RoleTagSelector
+              selected={skill.roleTags ?? []}
+              onChange={tags => store.updateSkill(skill.id, { roleTags: tags })}
             />
-            <Select value={skill.level} onValueChange={v => store.updateSkill(skill.id, { level: v })}>
-              <SelectTrigger className="w-36 rounded-xl">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {levels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button variant="ghost" size="sm" onClick={() => store.removeSkill(skill.id)} className="text-destructive hover:bg-destructive/10 rounded-lg px-2">
-              <Trash2 className="w-4 h-4" />
-            </Button>
           </div>
         ))}
         <Button onClick={store.addSkill} variant="outline" className="w-full rounded-xl border-dashed gap-2 hover:border-primary hover:text-primary">
@@ -774,6 +831,11 @@ function ProjectsForm({ store }: any) {
                 <Label className="text-xs mb-1.5 block">Project Link</Label>
                 <Input value={proj.link} onChange={e => store.updateProject(proj.id, { link: e.target.value })} placeholder="https://github.com/..." className="rounded-xl" />
               </div>
+              {/* Role Tags */}
+              <RoleTagSelector
+                selected={proj.roleTags ?? []}
+                onChange={tags => store.updateProject(proj.id, { roleTags: tags })}
+              />
               <div>
                 <Label className="text-xs mb-1.5 block">Description</Label>
                 <Textarea
@@ -782,6 +844,12 @@ function ProjectsForm({ store }: any) {
                   placeholder="Briefly describe what you built and the impact it had..."
                   rows={3}
                   className="rounded-xl resize-none"
+                />
+                {/* AI Bullet Rewriter */}
+                <BulletRewriter
+                  original={proj.description}
+                  onAccept={text => store.updateProject(proj.id, { description: text })}
+                  label="project description"
                 />
               </div>
             </div>

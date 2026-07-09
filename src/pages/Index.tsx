@@ -46,70 +46,10 @@ const features = [
   },
 ];
 
-const stats = [
-  { value: '50K+', label: 'Resumes Created' },
-  { value: '95%', label: 'Success Rate' },
-  { value: '3 min', label: 'Avg. Build Time' },
-  { value: '4.9★', label: 'User Rating' },
-];
-
-const testimonials = [
-  {
-    name: 'Sarah Chen',
-    role: 'Software Engineer at Google',
-    content: 'ResumeCraft helped me land my dream job! The AI suggestions made my experience descriptions so much more impactful.',
-    avatar: 'SC',
-  },
-  {
-    name: 'Marcus Johnson',
-    role: 'Product Designer at Figma',
-    content: 'The live preview is a game-changer. I could see exactly how my resume looked while editing. Got 3 interviews in a week!',
-    avatar: 'MJ',
-  },
-  {
-    name: 'Priya Patel',
-    role: 'Fresh Graduate',
-    content: 'As a recent grad, I had no idea how to format a resume. ResumeCraft guided me through every step perfectly.',
-    avatar: 'PP',
-  },
-];
-
 const templates = [
   { name: 'Modern', desc: 'Bold & contemporary', color: 'from-blue-500 to-blue-600' },
   { name: 'Minimal', desc: 'Clean & elegant', color: 'from-slate-600 to-slate-700' },
   { name: 'Professional', desc: 'Classic & trusted', color: 'from-emerald-500 to-emerald-600' },
-  { name: 'Creative', desc: 'Bold & artistic', color: 'from-violet-500 to-violet-600' },
-  { name: 'Executive', desc: 'Premium & elite', color: 'from-amber-600 to-amber-700' },
-  { name: 'Tech', desc: 'Modern & technical', color: 'from-slate-800 to-slate-900' },
-];
-
-const pricingPlans = [
-  {
-    name: 'Free',
-    price: '$0',
-    description: 'Perfect for getting started',
-    features: ['1 Resume', '3 Templates', 'PDF Download', 'Basic AI Suggestions'],
-    cta: 'Get Started Free',
-    highlight: false,
-  },
-  {
-    name: 'Pro',
-    price: '$9',
-    period: '/mo',
-    description: 'For serious job seekers',
-    features: ['Unlimited Resumes', 'All Templates', 'Priority AI Suggestions', 'No Watermark', 'Custom Colors', 'Cover Letter Builder'],
-    cta: 'Start Pro Trial',
-    highlight: true,
-  },
-  {
-    name: 'Team',
-    price: '$19',
-    period: '/mo',
-    description: 'For career coaches & teams',
-    features: ['Everything in Pro', 'Team Dashboard', 'Bulk Export', 'Analytics', 'Priority Support'],
-    cta: 'Contact Sales',
-    highlight: false,
-  },
 ];
 
 const Index = () => {
@@ -139,7 +79,6 @@ const Index = () => {
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
             <a href="#templates" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Templates</a>
-            <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
           </div>
           <div className="flex items-center gap-3">
             {user ? (
@@ -203,7 +142,7 @@ const Index = () => {
             Land your dream job faster — no design skills needed.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-up" style={{ animationDelay: '0.2s', opacity: 0, animationFillMode: 'forwards' }}>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-up" style={{ animationDelay: '0.2s', opacity: 0, animationFillMode: 'forwards' }}>
             <button
               className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary font-semibold px-8 h-14 text-base rounded-xl gap-2 group flex items-center justify-center transition-all"
               onClick={() => navigate(user ? '/builder' : '/auth', { state: { from: { pathname: '/builder' } } })}
@@ -219,16 +158,6 @@ const Index = () => {
             >
               View Templates
             </Button>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto animate-fade-up" style={{ animationDelay: '0.3s', opacity: 0, animationFillMode: 'forwards' }}>
-            {stats.map((stat) => (
-              <div key={stat.label} className="bg-card rounded-xl p-4 shadow-card text-center">
-                <div className="font-display text-2xl font-bold text-foreground">{stat.value}</div>
-                <div className="text-xs text-muted-foreground mt-1">{stat.label}</div>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -330,89 +259,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-24 px-6 bg-secondary/50">
-        <div className="container mx-auto max-w-5xl">
-          <div className="text-center mb-16">
-            <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">Loved by Job Seekers</h2>
-            <div className="flex items-center justify-center gap-1">
-              {[1, 2, 3, 4, 5].map(i => <Star key={i} className="w-5 h-5 fill-amber-400 text-amber-400" />)}
-              <span className="ml-2 text-muted-foreground text-sm">4.9/5 from 2,400+ reviews</span>
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((t) => (
-              <div key={t.name} className="bg-card rounded-2xl p-6 shadow-card border border-border">
-                <div className="flex items-center gap-1 mb-4">
-                  {[1, 2, 3, 4, 5].map(i => <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />)}
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-4">"{t.content}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
-                    {t.avatar}
-                  </div>
-                  <div>
-                    <div className="font-semibold text-sm">{t.name}</div>
-                    <div className="text-xs text-muted-foreground">{t.role}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section id="pricing" className="py-24 px-6">
-        <div className="container mx-auto max-w-5xl">
-          <div className="text-center mb-16">
-            <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
-            <p className="text-muted-foreground text-lg">Start free. Upgrade when you're ready.</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {pricingPlans.map((plan) => (
-              <div
-                key={plan.name}
-                className={`rounded-2xl p-6 border transition-all ${plan.highlight
-                  ? 'bg-primary border-primary/20 shadow-primary'
-                  : 'bg-card border-border shadow-card'
-                  }`}
-              >
-                {plan.highlight && (
-                  <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary-foreground/20 text-primary-foreground text-xs font-semibold mb-4">
-                    <Trophy className="w-3 h-3" /> Most Popular
-                  </div>
-                )}
-                <h3 className={`font-display font-bold text-xl mb-1 ${plan.highlight ? 'text-primary-foreground' : ''}`}>{plan.name}</h3>
-                <p className={`text-sm mb-4 ${plan.highlight ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{plan.description}</p>
-                <div className={`font-display text-4xl font-bold mb-6 ${plan.highlight ? 'text-primary-foreground' : ''}`}>
-                  {plan.price}<span className={`text-lg font-normal ${plan.highlight ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{plan.period}</span>
-                </div>
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((f) => (
-                    <li key={f} className={`flex items-center gap-2 text-sm ${plan.highlight ? 'text-primary-foreground' : ''}`}>
-                      <CheckCircle2 className={`w-4 h-4 flex-shrink-0 ${plan.highlight ? 'text-primary-foreground/80' : 'text-primary'}`} />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className={`w-full rounded-xl ${plan.highlight
-                    ? 'bg-primary-foreground text-primary hover:bg-primary-foreground/90 font-semibold'
-                    : 'bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary'
-                    }`}
-                  onClick={() => navigate(user ? '/builder' : '/auth', { state: { from: { pathname: '/builder' } } })}
-                >
-                  {plan.cta}
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA */}
       <section className="py-24 px-6 bg-hero-gradient">
         <div className="container mx-auto max-w-3xl text-center">
@@ -420,7 +266,6 @@ const Index = () => {
             Your Dream Job is{' '}
             <span className="text-gradient">One Resume Away</span>
           </h2>
-          <p className="text-muted-foreground text-xl mb-10">Join 50,000+ professionals who built their career with ResumeCraft.</p>
           <Button
             size="lg"
             className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary font-semibold px-10 h-14 text-base rounded-xl gap-2 group"
